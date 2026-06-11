@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: banking-agent-mcp-server
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["app:8080"]
+
+  - job_name: banking-agent-worker-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["worker-service:8082"]

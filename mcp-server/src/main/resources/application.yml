@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: banking-agent-mcp-server
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/banking_agent}
+    username: ${SPRING_DATASOURCE_USERNAME:app}
+    password: ${SPRING_DATASOURCE_PASSWORD:app}
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  ai:
+    mcp:
+      server:
+        name: banking-agent-mcp-server
+        version: 0.1.0
+        protocol: STREAMABLE
+        type: SYNC
+        instructions: Banking Agent MCP Server Standard PoC with mock legacy banking data only.
+        annotation-scanner:
+          enabled: true
+        streamable-http:
+          mcp-endpoint: /mcp/sdk
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+app:
+  legacy:
+    base-url: ${APP_LEGACY_BASE_URL:http://localhost:8081}
+  audit:
+    store: ${APP_AUDIT_STORE:jdbc}
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    topics:
+      jobRequested: agent.job.requested

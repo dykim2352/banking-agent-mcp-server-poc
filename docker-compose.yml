@@ -1,0 +1,114 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        MODULE: mcp-server
+        JAR_FILE: banking-agent-mcp-server-0.1.0-SNAPSHOT.jar
+    container_name: banking-agent-mcp-server
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banking_agent
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: app
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      APP_KAFKA_ENABLED: "true"
+      APP_LEGACY_BASE_URL: http://mock-legacy-service:8081
+    depends_on:
+      - redpanda
+      - postgres
+      - mock-legacy-service
+      - worker-service
+
+  worker-service:
+    build:
+      context: .
+      args:
+        MODULE: worker-service
+        JAR_FILE: banking-agent-worker-service-0.1.0-SNAPSHOT.jar
+    container_name: banking-agent-worker-service
+    ports:
+      - "8082:8082"
+    environment:
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banking_agent
+      SPRING_DATASOURCE_USERNAME: app
+      SPRING_DATASOURCE_PASSWORD: app
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      APP_KAFKA_ENABLED: "true"
+      APP_KAFKA_CONSUMER_ENABLED: "true"
+      APP_LEGACY_BASE_URL: http://mock-legacy-service:8081
+    depends_on:
+      - redpanda
+      - postgres
+      - mock-legacy-service
+
+  mock-legacy-service:
+    build:
+      context: .
+      args:
+        MODULE: mock-legacy-service
+        JAR_FILE: mock-legacy-service-0.1.0-SNAPSHOT.jar
+    container_name: banking-agent-mock-legacy-service
+    ports:
+      - "8081:8081"
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    container_name: banking-agent-redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 512M
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: banking-agent-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: banking_agent
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: banking-agent-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - app
+      - worker-service
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: banking-agent-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus

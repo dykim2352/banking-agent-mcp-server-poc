@@ -1,0 +1,534 @@
+{
+  "info": {
+    "_postman_id": "7a8542b9-70b4-4581-98e8-27fb979a0b64",
+    "name": "Banking Agent MCP Server Standard PoC",
+    "description": "Spring Boot 기반 Banking Agent MCP Server PoC 요청 모음입니다.\n\n## 실행 전제\n- `docker compose up --build -d`\n- MCP Server: `{{MCP_BASE_URL}}`\n- Mock Legacy Service: `{{LEGACY_BASE_URL}}`\n- Worker Service: `{{WORKER_BASE_URL}}`\n- Prometheus: `{{PROMETHEUS_URL}}`\n- Grafana: `{{GRAFANA_URL}}`\n\n## Mock 인증\n- USER: `{{USER_API_KEY}}`\n- ADVISOR: `{{ADVISOR_API_KEY}}`\n- ADMIN: `{{ADMIN_API_KEY}}`\n\n## 권장 확인 순서\n1. System / MCP Server Health\n2. MCP JSON-RPC / tools/list\n3. MCP JSON-RPC / resources/list\n4. MCP JSON-RPC / resources/read - account schema\n5. MCP JSON-RPC / prompts/list\n6. MCP JSON-RPC / prompts/get - customer consulting summary\n7. MCP JSON-RPC / account_summary\n8. MCP JSON-RPC / customer_ticket_create\n9. MCP JSON-RPC / loan_product_recommend - Access Denied\n10. Async Job / customer_ticket_create_async\n11. Async Job / async_job_status\n12. Ops API / Audit Events\n13. Ops API / Jobs\n14. Mock Legacy API / Account Summary\n15. Monitoring / Prometheus UI\n16. Monitoring / Grafana UI\n\n모든 데이터는 포트폴리오용 mock 데이터이며 실제 금융사명, 실제 고객명, 실제 계좌번호, 실제 업무 전문을 포함하지 않습니다.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "MCP Server Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{MCP_BASE_URL}}/actuator/health",
+            "description": "MCP 서버 상태를 확인합니다. 예상 결과는 `status: UP`입니다."
+          }
+        },
+        {
+          "name": "Worker Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{WORKER_BASE_URL}}/actuator/health",
+            "description": "비동기 Worker 서비스 상태를 확인합니다. 예상 결과는 `status: UP`입니다."
+          }
+        },
+        {
+          "name": "Mock Legacy Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{LEGACY_BASE_URL}}/actuator/health",
+            "description": "Mock Legacy 서비스 상태를 확인합니다. 예상 결과는 `status: UP`입니다."
+          }
+        },
+        {
+          "name": "MCP Server Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{MCP_BASE_URL}}/actuator/prometheus",
+            "description": "Prometheus가 수집하는 MCP 서버 지표 응답을 확인합니다."
+          }
+        }
+      ]
+    },
+    {
+      "name": "MCP JSON-RPC",
+      "item": [
+        {
+          "name": "tools/list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"tools-list-1\",\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "MCP Tool 목록을 조회합니다. `account_summary`, `customer_ticket_create_async`, `async_job_status` 등이 포함됩니다."
+          }
+        },
+        {
+          "name": "resources/list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"resources-list-1\",\n  \"method\": \"resources/list\",\n  \"params\": {}\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "MCP Resource 목록을 조회합니다."
+          }
+        },
+        {
+          "name": "resources/read - account schema",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{USER_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"resource-account-schema-1\",\n  \"method\": \"resources/read\",\n  \"params\": {\n    \"uri\": \"banking://schemas/account\"\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "USER 권한으로 계좌 Resource 내용을 조회합니다."
+          }
+        },
+        {
+          "name": "resources/read - access policy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{ADMIN_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"resource-access-policy-1\",\n  \"method\": \"resources/read\",\n  \"params\": {\n    \"uri\": \"banking://policies/access-control\"\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "ADMIN 권한으로 접근 정책 Resource 내용을 조회합니다."
+          }
+        },
+        {
+          "name": "resources/read - kafka topic design",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{ADMIN_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"resource-kafka-topic-1\",\n  \"method\": \"resources/read\",\n  \"params\": {\n    \"uri\": \"kafka://topics/agent-events\"\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "ADMIN 권한으로 Kafka Topic Resource 내용을 조회합니다."
+          }
+        },
+        {
+          "name": "prompts/list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"prompts-list-1\",\n  \"method\": \"prompts/list\",\n  \"params\": {}\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "MCP Prompt 목록을 조회합니다."
+          }
+        },
+        {
+          "name": "prompts/get - customer consulting summary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"prompt-customer-summary-1\",\n  \"method\": \"prompts/get\",\n  \"params\": {\n    \"name\": \"customer-consulting-summary\"\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "고객 상담 요약 Prompt 내용을 조회합니다."
+          }
+        },
+        {
+          "name": "prompts/get - loan product comparison",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"prompt-loan-comparison-1\",\n  \"method\": \"prompts/get\",\n  \"params\": {\n    \"name\": \"loan-product-comparison\"\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "대출 상품 비교 Prompt 내용을 조회합니다."
+          }
+        },
+        {
+          "name": "prompts/get - suspicious transaction review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"prompt-suspicious-review-1\",\n  \"method\": \"prompts/get\",\n  \"params\": {\n    \"name\": \"suspicious-transaction-review\"\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "거래 검토 Prompt 내용을 조회합니다."
+          }
+        },
+        {
+          "name": "account_summary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{USER_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"account-summary-1\",\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"account_summary\",\n    \"arguments\": {\n      \"accountId\": \"ACC-1001\"\n    }\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "USER 권한으로 계좌 요약 Tool을 호출합니다."
+          }
+        },
+        {
+          "name": "card_transaction_search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{USER_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"card-search-1\",\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"card_transaction_search\",\n    \"arguments\": {\n      \"cardId\": \"CARD-1001\"\n    }\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "USER 권한으로 카드 거래내역 Tool을 호출합니다."
+          }
+        },
+        {
+          "name": "loan_product_recommend",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{ADVISOR_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"loan-recommend-1\",\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"loan_product_recommend\",\n    \"arguments\": {\n      \"customerId\": \"CUST-1001\"\n    }\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "ADVISOR 권한으로 대출 상품 추천 Tool을 호출합니다."
+          }
+        },
+        {
+          "name": "customer_ticket_create",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{ADVISOR_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"ticket-create-1\",\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"customer_ticket_create\",\n    \"arguments\": {\n      \"customerId\": \"CUST-1001\",\n      \"title\": \"Mock title\",\n      \"description\": \"Mock description\"\n    }\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "ADVISOR 권한으로 상담 티켓 생성 Tool을 동기 호출합니다."
+          }
+        },
+        {
+          "name": "loan_product_recommend - Access Denied",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{USER_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"loan-denied-1\",\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"loan_product_recommend\",\n    \"arguments\": {\n      \"customerId\": \"CUST-1001\"\n    }\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "USER 권한으로 ADVISOR 이상 Tool을 호출해 `ACCESS_DENIED` 응답을 확인합니다."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Async Job",
+      "item": [
+        {
+          "name": "customer_ticket_create_async",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('async job accepted', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.result.content.status).to.eql('PENDING');",
+                  "  pm.environment.set('JOB_ID', body.result.content.jobId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{ADVISOR_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"async-create-1\",\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"customer_ticket_create_async\",\n    \"arguments\": {\n      \"customerId\": \"CUST-1001\",\n      \"title\": \"Mock title\",\n      \"description\": \"Mock description\"\n    }\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "비동기 상담 티켓 생성을 접수합니다. 응답의 `jobId`는 `JOB_ID` 환경 변수에 자동 저장됩니다."
+          }
+        },
+        {
+          "name": "async_job_status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Api-Key",
+                "value": "{{USER_API_KEY}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": \"async-status-1\",\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"async_job_status\",\n    \"arguments\": {\n      \"jobId\": \"{{JOB_ID}}\"\n    }\n  }\n}"
+            },
+            "url": "{{MCP_BASE_URL}}/mcp",
+            "description": "`customer_ticket_create_async`에서 저장된 `JOB_ID`로 작업 상태를 조회합니다."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ops API",
+      "item": [
+        {
+          "name": "Audit Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{ADMIN_API_KEY}}"
+              }
+            ],
+            "url": "{{MCP_BASE_URL}}/api/v1/audit/events?limit=20",
+            "description": "ADMIN 권한으로 감사 로그를 조회합니다."
+          }
+        },
+        {
+          "name": "Jobs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{ADMIN_API_KEY}}"
+              }
+            ],
+            "url": "{{MCP_BASE_URL}}/api/v1/ops/jobs?limit=20",
+            "description": "ADMIN 권한으로 비동기 작업 목록을 조회합니다."
+          }
+        },
+        {
+          "name": "Dead Letters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{ADMIN_API_KEY}}"
+              }
+            ],
+            "url": "{{MCP_BASE_URL}}/api/v1/ops/dead-letters?topic=agent.job.requested&limit=20",
+            "description": "ADMIN 권한으로 메시지 소비 실패 이력을 조회합니다."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mock Legacy API",
+      "item": [
+        {
+          "name": "Account Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{LEGACY_BASE_URL}}/api/v1/legacy/accounts/ACC-1001",
+            "description": "Mock 계좌 요약 API를 직접 호출합니다."
+          }
+        },
+        {
+          "name": "Card Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{LEGACY_BASE_URL}}/api/v1/legacy/cards/CARD-1001/transactions",
+            "description": "Mock 카드 거래내역 API를 직접 호출합니다."
+          }
+        },
+        {
+          "name": "Customer Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{LEGACY_BASE_URL}}/api/v1/legacy/customers/CUST-1001/profile",
+            "description": "Mock 고객 프로필 API를 직접 호출합니다."
+          }
+        },
+        {
+          "name": "Loan Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{LEGACY_BASE_URL}}/api/v1/legacy/customers/CUST-1001/loan-recommendations",
+            "description": "Mock 대출 추천 API를 직접 호출합니다."
+          }
+        },
+        {
+          "name": "Create Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mock title\",\n  \"description\": \"Mock description\"\n}"
+            },
+            "url": "{{LEGACY_BASE_URL}}/api/v1/legacy/customers/CUST-1001/tickets",
+            "description": "Mock 상담 티켓 생성 API를 직접 호출합니다."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Monitoring",
+      "item": [
+        {
+          "name": "Prometheus UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{PROMETHEUS_URL}}",
+            "description": "Prometheus UI 접속 확인용입니다. 브라우저에서 확인하는 것을 권장합니다."
+          }
+        },
+        {
+          "name": "Grafana UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{GRAFANA_URL}}",
+            "description": "Grafana UI 접속 확인용입니다. 브라우저에서 `admin / admin`으로 로그인 후 `Dashboards -> Banking Agent -> Banking Agent MCP Overview`를 확인합니다."
+          }
+        }
+      ]
+    }
+  ]
+}
