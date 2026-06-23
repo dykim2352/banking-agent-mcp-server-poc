@@ -1,4 +1,4 @@
-# Banking Agent MCP Server Standard PoC
+# 은행 Agent MCP 서버 표준 PoC
 
 ## 개요
 
